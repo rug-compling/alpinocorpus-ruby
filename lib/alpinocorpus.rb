@@ -25,16 +25,30 @@ module AlpinoCorpus
     include EntriesIterate
 
     def initialize(path)
+      @open = false
       @reader = AlpinoCorpusFFI::alpinocorpus_open(path)
 
       if @reader.null?
         raise RuntimeError, "Could not open corpus."
       end
 
-      ObjectSpace.define_finalizer(self, self.class.finalize(@reader))
+      @open = true
+
+      ObjectSpace.define_finalizer(self, self.class.finalize(self))
+    end
+
+    def close
+      if @open
+        AlpinoCorpusFFI::alpinocorpus_close(@reader)
+        @open = false
+      end
+
+      self
     end
 
     def each(&blk)
+      check_reader
+
       iter = AlpinoCorpusFFI::alpinocorpus_entry_iter(@reader)
       if iter.null?
         raise RuntimeError, "Could retrieve entries."
@@ -45,7 +59,13 @@ module AlpinoCorpus
       self
     end
 
+    def is_open?
+      @open
+    end
+
     def read(name)
+      check_reader
+
       strPtr = AlpinoCorpusFFI::alpinocorpus_read(@reader, name)
       
       if strPtr.null?
@@ -60,15 +80,27 @@ module AlpinoCorpus
     end
 
     def query(query)
-      Query.new(@reader, query)
+      check_reader
+
+      Query.new(self, @reader, query)
     end
 
-    def validQuery?(query)
+    def valid_query?(query)
+      check_reader
+
       AlpinoCorpusFFI::alpinocorpus_is_valid_query(@reader, query) == 1
     end
 
+    def check_reader # :nodoc:
+      if !@open
+        raise RuntimeError, "closed reader"
+      end
+    end
+
+    private
+
     def self.finalize(reader)
-      proc { AlpinoCorpusFFI::alpinocorpus_close(reader) }
+      proc { reader.close }
     end
   end
 
@@ -76,12 +108,19 @@ module AlpinoCorpus
     include Enumerable
     include EntriesIterate
 
-    def initialize(reader, query)
+    private
+
+    def initialize(rReader, reader, query)
+      @rReader = rReader
       @reader = reader
       @query = query
     end
 
+    public
+
     def each(&blk)
+      @rReader.check_reader
+
       iter = AlpinoCorpusFFI::alpinocorpus_query_iter(@reader, @query)
       if iter.null?
         raise RuntimeError, "Could not execute query."
