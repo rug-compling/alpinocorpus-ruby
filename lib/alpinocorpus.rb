@@ -20,10 +20,21 @@ end
 
 
 module AlpinoCorpus
+  # Reader for Alpino treebanks.
   class Reader
     include Enumerable
     include EntriesIterate
 
+    # call-seq:
+    #    Reader::open(path) -> reader<br/>
+    #    Reader::open(path) { |reader| block } -> nil
+    #
+    # Constructs a corpus reader, opening the corpus at _path_. The
+    # corpus can be one of the following types:
+    #
+    # * Dact (DBXML)
+    # * Compact corpus
+    # * Directory with XML files
     def self.open(path)
       if block_given?
         r = Reader.new(path)
@@ -37,6 +48,14 @@ module AlpinoCorpus
       end
     end
 
+    # call-seq: Reader.new(path)
+    #
+    # Constructs a corpus reader, opening the corpus at _path_. The
+    # corpus can be one of the following types:
+    #
+    # * Dact (DBXML)
+    # * Compact corpus
+    # * Directory with XML files
     def initialize(path)
       @open = false
       @reader = AlpinoCorpusFFI::alpinocorpus_open(path)
@@ -50,6 +69,10 @@ module AlpinoCorpus
       ObjectSpace.define_finalizer(self, self.class.finalize(self))
     end
 
+    # call-seq:
+    #    read.close -> reader
+    #
+    # Close a reader.
     def close
       if @open
         AlpinoCorpusFFI::alpinocorpus_close(@reader)
@@ -59,6 +82,10 @@ module AlpinoCorpus
       self
     end
 
+    # call-seq:
+    #   reader.each {|entry| block} -> reader
+    #
+    # Execute a code block for each corpus entry name. 
     def each(&blk)
       check_reader
 
@@ -72,10 +99,19 @@ module AlpinoCorpus
       self
     end
 
+    # call-seq:
+    #   reader.is_open? -> true or false
+    #
+    # Check whether the reader is open.
     def is_open?
       @open
     end
 
+    # call-seq:
+    #   reader.read(entry[, markers]) -> data
+    #
+    # Reads an entry from the corpus. Nodes matching a query can be marked
+    # by providing a list of MarkerQuery.
     def read(name)
       check_reader
 
@@ -92,12 +128,20 @@ module AlpinoCorpus
       str
     end
 
+    # call-seq:
+    #   reader.query(q) -> query
+    #
+    # Returns a Query instance for the given query _q_.
     def query(query)
       check_reader
 
       Query.new(self, @reader, query)
     end
 
+    # call-seq:
+    #   reader.valid_query?(query) -> bool
+    #
+    # Validate an XPath query using _reader_.
     def valid_query?(query)
       check_reader
 
@@ -112,18 +156,19 @@ module AlpinoCorpus
 
     private
 
-    def self.finalize(reader)
+    def self.finalize(reader) # :nodoc:
       proc { reader.close }
     end
   end
 
+  # Queries over Reader instances.
   class Query
     include Enumerable
     include EntriesIterate
 
     private
 
-    def initialize(rReader, reader, query)
+    def initialize(rReader, reader, query) # :nodoc:
       @rReader = rReader
       @reader = reader
       @query = query
@@ -131,6 +176,10 @@ module AlpinoCorpus
 
     public
 
+    # call-seq:
+    #   query.each {|entry| block} -> query
+    #
+    # Execute a code block for each corpus entry name (matching the query). 
     def each(&blk)
       @rReader.check_reader
 
