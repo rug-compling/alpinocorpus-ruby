@@ -24,6 +24,19 @@ module AlpinoCorpus
     include Enumerable
     include EntriesIterate
 
+    def self.open(path)
+      if block_given?
+        r = Reader.new(path)
+        begin
+          yield r
+        ensure
+          r.close
+        end
+      else
+        Reader.new(path)
+      end
+    end
+
     def initialize(path)
       @open = false
       @reader = AlpinoCorpusFFI::alpinocorpus_open(path)
