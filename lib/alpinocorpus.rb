@@ -34,9 +34,6 @@ module AlpinoCorpus
   attach_function :alpinocorpus_iter_destroy, [:pointer], :void
   attach_function :alpinocorpus_is_valid_query, [:pointer, :string], :int
 
-  class AlpinoCorpusException < Exception
-  end
-
   class Reader
     include Enumerable
     include EntriesIterate
@@ -45,7 +42,7 @@ module AlpinoCorpus
       @reader = AlpinoCorpus::alpinocorpus_open(path)
 
       if @reader.null?
-        raise AlpinoCorpusException, "Could not open corpus."
+        raise RuntimeError, "Could not open corpus."
       end
 
       ObjectSpace.define_finalizer(self, self.class.finalize(@reader))
@@ -54,7 +51,7 @@ module AlpinoCorpus
     def each(&blk)
       iter = AlpinoCorpus::alpinocorpus_entry_iter(@reader)
       if iter.null?
-        raise AlpinoCorpusException, "Could retrieve entries."
+        raise RuntimeError, "Could retrieve entries."
       end
 
       entriesIterate(iter, &blk)
@@ -66,7 +63,7 @@ module AlpinoCorpus
       strPtr = AlpinoCorpus::alpinocorpus_read(@reader, name)
       
       if strPtr.null?
-        raise AlpinoCorpusException, "Could not read entry."
+        raise RuntimeError, "Could not read entry."
       end
 
       str = strPtr.get_string(0)
@@ -101,7 +98,7 @@ module AlpinoCorpus
     def each(&blk)
       iter = AlpinoCorpus::alpinocorpus_query_iter(@reader, @query)
       if iter.null?
-        raise AlpinoCorpusException, "Could not execute query."
+        raise RuntimeError, "Could not execute query."
       end
 
       entriesIterate(iter, &blk)
